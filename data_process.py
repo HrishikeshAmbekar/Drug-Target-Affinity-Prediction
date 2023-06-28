@@ -326,9 +326,10 @@ def create_dataset_for_test(dataset):
     return test_dataset
 
 
-def create_dataset_for_5folds(dataset, fold=0):
+def create_dataset_for_training(dataset, embedding):
     # load dataset
     dataset_path = 'data/' + dataset + '/'
+    embedding_path = 'data/' + dataset + '_protein_embeddings_' + embedding + '/'
     train_fold_origin = json.load(open(dataset_path + 'folds/train_fold_setting1.txt'))
     train_fold_origin = [e for e in train_fold_origin]  # for 5 folds
 
@@ -345,9 +346,9 @@ def create_dataset_for_5folds(dataset, fold=0):
 
     # load train,valid and test entries
     train_folds = []
-    valid_fold = train_fold_origin[fold]  # one fold
+    valid_fold = train_fold_origin[0]  # one fold
     for i in range(len(train_fold_origin)):  # other folds
-        if i != fold:
+        if i != 0:
             train_folds += train_fold_origin[i]
 
     affinity = pickle.load(open(dataset_path + 'Y', 'rb'), encoding='latin1')
@@ -430,7 +431,7 @@ def create_dataset_for_5folds(dataset, fold=0):
     for key in target_key:
         if not valid_target(key, dataset):  # ensure the contact and aln files exists
             continue
-        g = target_to_graph(key, proteins[key], contac_path, msa_path)
+        g = target_to_graph(key, proteins[key], contac_path, msa_path, embedding)
         target_graph[key] = g
 
     # count the number of  proteins with aln and contact files
