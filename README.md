@@ -1,6 +1,6 @@
 # Drug Target Affinity (DTA) Prediction
 
-**Training**
+**Training**:
 run command of following type:
 python train.py 0 0 1000 0 0
 where the parameters are:
@@ -21,7 +21,7 @@ where the parameters are:
      2: protT5
 
 
-**Testing**
+**Testing**:
 run command of following type:
 python test.py 0 0 1000 0 0
 where the parameters are:
