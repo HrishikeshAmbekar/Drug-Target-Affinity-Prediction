@@ -7,7 +7,7 @@ from collections import OrderedDict
 from rdkit import Chem
 from rdkit.Chem import MolFromSmiles
 import networkx as nx
-
+from sklearn.decomposition import PCA
 from utils import *
 
 
@@ -203,7 +203,8 @@ def target_to_feature(target_key, target_sequence, aln_dir):
 
 
 # pconsc4 predicted contact map save in data/dataset/pconsc4
-def target_to_graph(target_key, target_sequence, contact_dir, aln_dir):
+def target_to_graph(target_key, target_sequence, contact_dir, aln_dir, dataset, embedding):
+    embedding_dir = 'data/' + dataset + '_protein_embeddings_' + embedding
     target_edge_index = []
     target_size = len(target_sequence)
     # contact_dir = 'data/' + dataset + '/pconsc4'
@@ -214,6 +215,42 @@ def target_to_graph(target_key, target_sequence, contact_dir, aln_dir):
     for i, j in zip(index_row, index_col):
         target_edge_index.append([i, j])
     target_feature = target_to_feature(target_key, target_sequence, aln_dir)
+    embedding_file = os.path.join(embedding_dir, target_key + '.pt')
+    embedding_file_extras = os.path.join(embedding_dir+ '_extra_length_part_1', target_key + '.pt')
+    embedding_file_extras2 = os.path.join(embedding_dir + '_extra_length_part_2', target_key + '.pt')
+    embedding_file_extras3 = os.path.join(embedding_dir + '_extra_length_part_3', target_key + '.pt')
+    embedding_file_extras4 = os.path.join(embedding_dir + '_extra_length_part_4', target_key + '.pt')
+    embedding_torch = torch.load(embedding_file)
+    if(embedding != 'protT5'):
+        embedding_torch = embedding_torch['representations'][33]
+    embeddings = embedding_torch.numpy()
+    if(os.path.exists(embedding_file_extras)):
+       embedding_torch2 = torch.load(embedding_file_extras)
+       if(embedding != 'protT5'):
+          embedding_torch2 = embedding_torch2['representations'][33]
+          embeddings2 = embedding_torch2.numpy()
+          embeddings = np.concatenate((embeddings,embeddings2))
+          if(os.path.exists(embedding_file_extras2)):
+            embedding_torch3 = torch.load(embedding_file_extras2)
+            if(embedding != 'protT5'):
+               embedding_torch3 = embedding_torch3['representations'][33]
+            embeddings3 = embedding_torch3.numpy()
+            embeddings = np.concatenate((embeddings,embeddings3))
+            if(os.path.exists(embedding_file_extras3)):
+               embedding_torch4 = torch.load(embedding_file_extras3)
+               if(embedding != 'protT5'):
+                  embedding_torch4 = embedding_torch4['representations'][33]
+               embeddings4 = embedding_torch4.numpy()
+               embeddings = np.concatenate((embeddings,embeddings4))
+               if(os.path.exists(embedding_file_extras4)):
+                  embedding_torch5 = torch.load(embedding_file_extras4)
+                  if(embedding != 'protT5'):
+                     embedding_torch5 = embedding_torch5['representations'][33]
+                  embeddings5 = embedding_torch5.numpy()
+                  embeddings = np.concatenate((embeddings,embeddings5))
+    pca = PCA(n_components=33)
+    reduced_embeddings = pca.fit_transform(embeddings)
+    target_feature =np.concatenate((reduced_embeddings,target_feature),axis=1)
     target_edge_index = np.array(target_edge_index)
     return target_size, target_feature, target_edge_index
 
@@ -238,7 +275,7 @@ def data_to_csv(csv_file, datalist):
             f.write(','.join(map(str, data)) + '\n')
 
 
-def create_dataset_for_test(dataset):
+def create_dataset_for_test(dataset, embedding):
     # load dataset
     dataset_path = 'data/' + dataset + '/'
     test_fold = json.load(open(dataset_path + 'folds/test_fold_setting1.txt'))
@@ -307,7 +344,7 @@ def create_dataset_for_test(dataset):
     for key in target_key:
         if not valid_target(key, dataset):  # ensure the contact and aln files exists
             continue
-        g = target_to_graph(key, proteins[key], contac_path, msa_path)
+        g = target_to_graph(key, proteins[key], contac_path, msa_path, dataset, embedding)
         target_graph[key] = g
 
     # count the number of  proteins with aln and contact files
@@ -329,7 +366,6 @@ def create_dataset_for_test(dataset):
 def create_dataset_for_training(dataset, embedding):
     # load dataset
     dataset_path = 'data/' + dataset + '/'
-    embedding_path = 'data/' + dataset + '_protein_embeddings_' + embedding + '/'
     train_fold_origin = json.load(open(dataset_path + 'folds/train_fold_setting1.txt'))
     train_fold_origin = [e for e in train_fold_origin]  # for 5 folds
 
@@ -388,7 +424,7 @@ def create_dataset_for_training(dataset, embedding):
                 train_fold_entries.append(ls)
                 valid_train_count += 1
 
-            csv_file = 'data/' + dataset + '_' + 'fold_' + str(fold) + '_' + opt + '.csv'
+            csv_file = 'data/' + dataset  + '_' + opt + '.csv'
             data_to_csv(csv_file, train_fold_entries)
         elif opt == 'valid':
             rows, cols = np.where(np.isnan(affinity) == False)
@@ -405,13 +441,12 @@ def create_dataset_for_training(dataset, embedding):
                 valid_fold_entries.append(ls)
                 valid_valid_count += 1
 
-            csv_file = 'data/' + dataset + '_' + 'fold_' + str(fold) + '_' + opt + '.csv'
+            csv_file = 'data/' + dataset  + '_' + opt + '.csv'
             data_to_csv(csv_file, valid_fold_entries)
     print('dataset:', dataset)
     # print('len(set(drugs)),len(set(prots)):', len(set(drugs)), len(set(prots)))
 
     # entries with protein contact and aln files are marked as effiective
-    print('fold:', fold)
     print('train entries:', len(train_folds), 'effective train entries', valid_train_count)
     print('valid entries:', len(valid_fold), 'effective valid entries', valid_valid_count)
 
@@ -431,7 +466,7 @@ def create_dataset_for_training(dataset, embedding):
     for key in target_key:
         if not valid_target(key, dataset):  # ensure the contact and aln files exists
             continue
-        g = target_to_graph(key, proteins[key], contac_path, msa_path, embedding)
+        g = target_to_graph(key, proteins[key], contac_path, msa_path, dataset, embedding)
         target_graph[key] = g
 
     # count the number of  proteins with aln and contact files
@@ -440,7 +475,7 @@ def create_dataset_for_training(dataset, embedding):
         raise Exception('no protein or drug, run the script for datasets preparation.')
 
     # 'data/davis_fold_0_train.csv' or data/kiba_fold_0__train.csv'
-    train_csv = 'data/' + dataset + '_' + 'fold_' + str(fold) + '_' + 'train' + '.csv'
+    train_csv = 'data/' + dataset + '_' + 'train' + '.csv'
     df_train_fold = pd.read_csv(train_csv)
     train_drugs, train_prot_keys, train_Y = list(df_train_fold['compound_iso_smiles']), list(
         df_train_fold['target_key']), list(df_train_fold['affinity'])
@@ -449,7 +484,7 @@ def create_dataset_for_training(dataset, embedding):
                                y=train_Y, smile_graph=smile_graph, target_graph=target_graph)
 
 
-    df_valid_fold = pd.read_csv('data/' + dataset + '_' + 'fold_' + str(fold) + '_' + 'valid' + '.csv')
+    df_valid_fold = pd.read_csv('data/' + dataset + '_' + 'valid' + '.csv')
     valid_drugs, valid_prots_keys, valid_Y = list(df_valid_fold['compound_iso_smiles']), list(
         df_valid_fold['target_key']), list(df_valid_fold['affinity'])
     valid_drugs, valid_prots_keys, valid_Y = np.asarray(valid_drugs), np.asarray(valid_prots_keys), np.asarray(

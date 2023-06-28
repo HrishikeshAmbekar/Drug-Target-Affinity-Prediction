@@ -9,7 +9,7 @@ from torch_geometric.data import Batch
 from emetrics import get_aupr, get_cindex, get_rm2, get_ci, get_mse, get_rmse, get_pearson, get_spearman
 from utils import *
 from scipy import stats
-from gnn import GNNNet
+from gnn import GNNNet_2GCN_Layers, GNNNet_2GAT_Layers, GNNNet_3GCN_Layers, GNNNet_3GAT_Layers, GNNNet_1GCN_and_1GAT_Layer
 from data_process import create_dataset_for_test
 
 
@@ -88,7 +88,6 @@ def plot_density(Y, P, fold=0, dataset='davis'):
 
 if __name__ == '__main__':
     dataset = ['davis', 'kiba'][int(sys.argv[1])]  # dataset selection
-    model_st = GNNNet.__name__
     print('dataset:', dataset)
 
     cuda_name = ['cuda:0', 'cuda:1', 'cuda:2', 'cuda:3'][int(sys.argv[2])]  # gpu selection
@@ -97,18 +96,20 @@ if __name__ == '__main__':
     TEST_BATCH_SIZE = 512
     models_dir = 'models'
     results_dir = 'results'
-
+    NUM_EPOCHS =int(sys.argv[3])
     device = torch.device(cuda_name if torch.cuda.is_available() else 'cpu')
-    model_file_name = 'models/model_' + model_st + '_' + dataset + '.model'
-    result_file_name = 'results/result_' + model_st + '_' + dataset + '.txt'
 
-    model = GNNNet()
+    model = [GNNNet_2GCN_Layers(), GNNNet_2GAT_Layers(), GNNNet_3GCN_Layers(), GNNNet_3GAT_Layers(), GNNNet_1GCN_and_1GAT_Layer()][int(sys.argv[4])]
+    model_st = [GNNNet_2GCN_Layers.__name__, GNNNet_2GAT_Layers.__name__, GNNNet_3GCN_Layers.__name__, GNNNet_3GAT_Layers.__name__, GNNNet_1GCN_and_1GAT_Layer.__name__][int(sys.argv[4])]
     model.to(device)
+    embedding = ['esm1b','esm2','protT5'][int(sys.argv[5])]
+    model_file_name = 'models/model_' + model_st + '_' + dataset + '_' + embedding +'_' + NUM_EPOCHS + '.model'
+    result_file_name = 'results/result_' + model_st + '_' + dataset + '_' + embedding + '_' + NUM_EPOCHS + '.txt'
     model.load_state_dict(torch.load(model_file_name, map_location=cuda_name))
-    test_data = create_dataset_for_test(dataset)
+    test_data = create_dataset_for_test(dataset, embedding)
     test_loader = torch.utils.data.DataLoader(test_data, batch_size=TEST_BATCH_SIZE, shuffle=False,
                                               collate_fn=collate)
 
     Y, P = predicting(model, device, test_loader)
     calculate_metrics(Y, P, dataset)
-    # plot_density(Y, P, fold, dataset)
+    plot_density(Y, P, fold, dataset)
