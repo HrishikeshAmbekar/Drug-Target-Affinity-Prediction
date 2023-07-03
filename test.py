@@ -34,7 +34,7 @@ def load_model(model_path):
     return model
 
 
-def calculate_metrics(Y, P, dataset='davis'):
+def calculate_metrics(Y, P, dataset='davis', model_st, NUM_EPOCHS ):
     # aupr = get_aupr(Y, P)
     cindex = get_cindex(Y, P)  # DeepDTA
     cindex2 = get_ci(Y, P)  # GraphDTA
@@ -52,7 +52,7 @@ def calculate_metrics(Y, P, dataset='davis'):
     print('mse:', mse)
     print('pearson', pearson)
 
-    result_file_name = 'results/result_' + model_st + '_' + dataset + '.txt'
+    result_file_name = 'results/result_' + model_st + '_' + dataset + '_' + str(NUM_EPOCHS) + '.txt'
     result_str = ''
     result_str += dataset + '\r\n'
     result_str += 'rmse:' + str(rmse) + ' ' + ' mse:' + str(mse) + ' ' + ' pearson:' + str(
@@ -61,7 +61,7 @@ def calculate_metrics(Y, P, dataset='davis'):
     open(result_file_name, 'w').writelines(result_str)
 
 
-def plot_density(Y, P, fold=0, dataset='davis'):
+def plot_density(Y, P, dataset='davis', model_st, NUM_EPOCHS):
     plt.figure(figsize=(10, 5))
     plt.grid(linestyle='--')
     ax = plt.gca()
@@ -83,7 +83,7 @@ def plot_density(Y, P, fold=0, dataset='davis'):
     leg = plt.gca().get_legend()
     ltext = leg.get_texts()
     plt.setp(ltext, fontsize=12, fontweight='bold')
-    plt.savefig(os.path.join('results', dataset + '_' + str(fold) + '.png'), dpi=500, bbox_inches='tight')
+    plt.savefig(os.path.join('results', 'plot_'+ model_st+ '_' + dataset + '_' + str(NUM_EPOCHS) + '.png'), dpi=500, bbox_inches='tight')
 
 
 if __name__ == '__main__':
@@ -111,5 +111,5 @@ if __name__ == '__main__':
                                               collate_fn=collate)
 
     Y, P = predicting(model, device, test_loader)
-    calculate_metrics(Y, P, dataset)
-    plot_density(Y, P, fold, dataset)
+    calculate_metrics(Y, P, dataset, model_st, NUM_EPOCHS )
+    plot_density(Y, P, dataset, model_st, NUM_EPOCHS)
